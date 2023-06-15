@@ -23,13 +23,16 @@
  */
 require_once('../../config.php');
 require_once($CFG->dirroot. '/local/greetings/lib.php');
-require_login();
 $context = context_system::instance();
 $PAGE->set_context($context);
 $PAGE->set_url(new moodle_url('/local/greetings/index.php'));
 $PAGE->set_pagelayout('standard');
 $PAGE->set_title($SITE->fullname);
 $PAGE->set_heading(get_string('pluginname', 'local_greetings'));
+require_login();
+if (isguestuser()) {
+    throw new moodle_exception('noguest');
+}
 $messageform = new \local_greetings\form\message_form();
 if ($data = $messageform->get_data()) {
     $message = required_param('message', PARAM_TEXT);
@@ -60,7 +63,7 @@ echo $OUTPUT->box_start('card-columns');
 foreach ($messages as $m) {
     echo html_writer::start_tag('div', array('class' => 'card'));
     echo html_writer::start_tag('div', array('class' => 'card-body'));
-    echo html_writer::tag('p', $m->message, array('class' => 'card-text'));
+    echo html_writer::tag('p', format_text($m->message, FORMAT_PLAIN), array('class' => 'card-text'));
     echo html_writer::start_tag('p', array('class' => 'card-text'));
     echo html_writer::tag('p', get_string('postedby', 'local_greetings', $m->firstname), array('class' => 'card-text'));
     echo html_writer::tag('small', userdate($m->timecreated), array('class' => 'text-muted'));
