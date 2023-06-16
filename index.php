@@ -30,11 +30,29 @@ $PAGE->set_pagelayout('standard');
 $PAGE->set_title($SITE->fullname);
 $PAGE->set_heading(get_string('pluginname', 'local_greetings'));
 require_login();
+// No spermite acceso a guests.
 if (isguestuser()) {
     throw new moodle_exception('noguest');
 }
+// Checa si un usuario tiene la capabilidad de crear y ver posts.
+$allowpost = has_capability('local/greetings:postmessages', $context);
+$deletepost = has_capability('local/greetings:deleteownmessage', $context);
+$deleteanypost = has_capability('local/greetings:deleteanymessage', $context);
+
+$action = optional_param('action', '', PARAM_TEXT);
+
+if ($action == 'del') {
+    $id = required_param('id', PARAM_TEXT);
+
+    if ($deleteanypost || $deletepost) {
+
+        $DB->delete_records('local_greetings_messages', array('id' => $id));
+    }
+}
+// Crea formulario.
 $messageform = new \local_greetings\form\message_form();
 if ($data = $messageform->get_data()) {
+    require_capability('local/greetings:postmessages', $context);
     $message = required_param('message', PARAM_TEXT);
 
     if (!empty($message)) {
@@ -47,30 +65,56 @@ if ($data = $messageform->get_data()) {
 }
 echo $OUTPUT->header();
 // Contenido a mostrar de la página.
-echo local_greetings_get_greeting($USER);
-$messageform->display();
-$userfields = \core_user\fields::for_name()->with_identity($context);
-$userfieldssql = $userfields->get_sql('u');
-
-$sql = "SELECT m.id, m.message, m.timecreated, m.userid {$userfieldssql->selects}
-          FROM {local_greetings_messages} m
-     LEFT JOIN {user} u ON u.id = m.userid
-      ORDER BY timecreated DESC";
-
-$messages = $DB->get_records_sql($sql);
-echo $OUTPUT->box_start('card-columns');
-
-foreach ($messages as $m) {
-    echo html_writer::start_tag('div', array('class' => 'card'));
-    echo html_writer::start_tag('div', array('class' => 'card-body'));
-    echo html_writer::tag('p', format_text($m->message, FORMAT_PLAIN), array('class' => 'card-text'));
-    echo html_writer::start_tag('p', array('class' => 'card-text'));
-    echo html_writer::tag('p', get_string('postedby', 'local_greetings', $m->firstname), array('class' => 'card-text'));
-    echo html_writer::tag('small', userdate($m->timecreated), array('class' => 'text-muted'));
-    echo html_writer::end_tag('p');
-    echo html_writer::end_tag('div');
-    echo html_writer::end_tag('div');
+// Checa capabilidades para ver saludo.
+if (isloggedin()) {
+    echo local_greetings_get_greeting($USER);
+} else {
+    echo get_string('greetinguser', 'local_greetings');
 }
+// Checa capabilidades para postear.
+if ($allowpost) {
+    $messageform->display();
+}
+// Checa capabilidades para mostrar mensajes.
+if (has_capability('local/greetings:viewmessages', $context)) {
+    // Hacer consulta para conseguir mensajes.
+    $userfields = \core_user\fields::for_name()->with_identity($context);
+    $userfieldssql = $userfields->get_sql('u');
 
-echo $OUTPUT->box_end();
+    $sql = "SELECT m.id, m.message, m.timecreated, m.userid {$userfieldssql->selects}
+              FROM {local_greetings_messages} m
+         LEFT JOIN {user} u ON u.id = m.userid
+          ORDER BY timecreated DESC";
+
+    $messages = $DB->get_records_sql($sql);
+    // Muestra los mensajes en bloques.
+    echo $OUTPUT->box_start('card-columns');
+
+    foreach ($messages as $m) {
+        echo html_writer::start_tag('div', array('class' => 'card'));
+        echo html_writer::start_tag('div', array('class' => 'card-body'));
+        echo html_writer::tag('p', format_text($m->message, FORMAT_PLAIN), array('class' => 'card-text'));
+        echo html_writer::tag('p', get_string('postedby', 'local_greetings', $m->firstname), array('class' => 'card-text'));
+        echo html_writer::start_tag('p', array('class' => 'card-text'));
+        echo html_writer::tag('small', userdate($m->timecreated), array('class' => 'text-muted'));
+        echo html_writer::end_tag('p');
+        // Checa capabilidades para borrar mensajes.
+        if ($deleteanypost || ($deletepost && $m->userid == $USER->id)) {
+            echo html_writer::start_tag('p', array('class' => 'card-footer text-center'));
+            echo html_writer::link(
+                new moodle_url(
+                    '/local/greetings/index.php',
+                    array('action' => 'del', 'id' => $m->id)
+                ),
+                $OUTPUT->pix_icon('t/delete', '') . get_string('delete')
+            );
+            echo html_writer::end_tag('p');
+        } // End if capabilidad para borrar mensajes.
+        echo html_writer::end_tag('div');
+        echo html_writer::end_tag('div');
+    } // End foreach.
+
+    echo $OUTPUT->box_end();
+
+} // End if chequeo de capavilidades de visualización.
 echo $OUTPUT->footer();

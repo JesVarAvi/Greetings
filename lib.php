@@ -22,6 +22,7 @@
  * @copyright   jesus.vargasa@e-ducatek.com
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+// Función con switch para mostrar saludo dependiendo del país.
 function local_greetings_get_greeting($user) {
     if ($user == null) {
         return get_string('greetinguser', 'local_greetings');
@@ -68,7 +69,7 @@ function local_greetings_extend_navigation_frontpage(navigation_node $frontpage)
         navigation_node::TYPE_CUSTOM,
     );
 }
-
+// Agrega enlace de navegación para el plugin.
 function local_greetings_extend_navigation(global_navigation $root) {
     $node = navigation_node::create(    // Nodo con ícono.
         get_string('pluginname', 'local_greetings'),
