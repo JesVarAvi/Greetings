@@ -25,7 +25,7 @@ require_once('../../config.php');
 require_once($CFG->dirroot. '/local/greetings/lib.php');
 $context = context_system::instance();
 $PAGE->set_context($context);
-$PAGE->set_url(new moodle_url('/local/greetings/index.php'));
+$PAGE->set_url(new moodle_url('/local/greetings/index.php', ['sesskey' => sesskey()]));
 $PAGE->set_pagelayout('standard');
 $PAGE->set_title($SITE->fullname);
 $PAGE->set_heading(get_string('pluginname', 'local_greetings'));
@@ -38,7 +38,7 @@ if (isguestuser()) {
 $allowpost = has_capability('local/greetings:postmessages', $context);
 $deletepost = has_capability('local/greetings:deleteownmessage', $context);
 $deleteanypost = has_capability('local/greetings:deleteanymessage', $context);
-
+// Acción al borrar un mensaje.
 $action = optional_param('action', '', PARAM_TEXT);
 
 if ($action == 'del') {
@@ -47,6 +47,7 @@ if ($action == 'del') {
     if ($deleteanypost || $deletepost) {
 
         $DB->delete_records('local_greetings_messages', array('id' => $id));
+        redirect($PAGE->urll);
     }
 }
 // Crea formulario.
@@ -61,6 +62,7 @@ if ($data = $messageform->get_data()) {
         $record->timecreated = time();
         $record->userid = $USER->id;
         $DB->insert_record('local_greetings_messages', $record);
+        redirect($PAGE->url);
     }
 }
 echo $OUTPUT->header();
